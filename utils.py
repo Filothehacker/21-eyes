@@ -40,10 +40,11 @@ def precompute_img_stats(images_dir):
 
 
 class CustomDataset(Dataset):
-    def __init__(self, images_dir, labels_dir, classes, transform=None, input_size=(448, 448)):
+    def __init__(self, images_dir, labels_dir, classes, yolo_params, transform=None, input_size=(448, 448)):
         self.images_dir = images_dir
         self.labels_dir = labels_dir
         self.classes = classes
+        self.yolo_params = yolo_params
         self.transform = transform
         self.input_size = input_size
         
@@ -66,6 +67,43 @@ class CustomDataset(Dataset):
         return len(self.image_files)
     
 
+    def build_label(self, label_path):
+        params = self.yolo_params
+        label = torch.zeros((params["S"], params["S"], params["B"]*5 + len(self.classes)))
+
+        with open(label_path, "r") as f:
+            for line in f:
+                values = line.strip().split()
+                if len(values) != 5:
+                    continue
+                class_id = int(values[0])
+                x_center, y_center, width, height = map(float, values[1:])
+
+                # Determine the cell that should be responsible for the object
+                grid_x = int(x_center*params["S"])
+                grid_y = int(y_center*params["S"])
+
+                # Convert to coordinates relative to the cell
+                x_cell = x_center*params["S"] - grid_x
+                y_cell = y_center*params["S"] - grid_y
+
+                # Skip the cell if it has already been chosen as the center of another object
+                # This is specific to YOLOv1
+                if label[grid_y, grid_x, 4] != 0:
+                    continue
+
+                # Set the coordinates and dimensions of the bounding boxes
+                for b in range(params["B"]):
+                    label[grid_y, grid_x, b*5] = x_cell
+                    label[grid_y, grid_x, b*5+1] = y_cell
+                    label[grid_y, grid_x, b*5+2] = width
+                    label[grid_y, grid_x, b*5+3] = height
+                    label[grid_y, grid_x, b*5+4] = 1
+                # Set the class label
+                label[grid_y, grid_x, params["B"]*5+class_id] = 1
+        return label
+    
+
     def __getitem__(self, idx):
         img_path = os.path.join(self.images_dir, self.image_files[idx])
         img = Image.open(img_path).convert("RGB")
@@ -84,39 +122,42 @@ class CustomDataset(Dataset):
             ])(img)
 
         label_path = os.path.join(self.labels_dir, self.label_files[idx])
-        boxes = []
-        classes = []
+        label = self.build_label(label_path)
         
-        with open(label_path, "r") as f:
-            for line in f:
-                values = line.strip().split()
-                if len(values) != 5:
-                    continue
-                    
-                class_id, x_center, y_center, width, height = map(float, values)
-                class_id = int(class_id)
-                
-                # Extract rank and suit from class_id or class name
-                class_name = self.classes[class_id]
-                if class_name.startswith("10"):
-                    rank = "10"
-                    suit = class_name[2]
-                else:
-                    rank = class_name[0]
-                    suit = class_name[1]
-                
-                # Map rank to index
-                rank_map = {"2": 0, "3": 1, "4": 2, "5": 3, "6": 4, "7": 5, "8": 6, 
-                           "9": 7, "10": 8, "J": 9, "Q": 10, "K": 11, "A": 12}
-                rank_idx = rank_map.get(rank, 0)
-                
-                # Map suit to index
-                suit_map = {"C": 0, "D": 1, "H": 2, "S": 3}
-                suit_idx = suit_map.get(suit, 0)
-                
-                boxes.append([x_center, y_center, width, height])
-                classes.append((class_id, rank_idx, suit_idx))
-        boxes = torch.tensor(boxes, dtype=torch.float32)
-        classes = torch.tensor(classes, dtype=torch.long)
-        
-        return img, boxes, classes
+        return img, label
+
+
+def train(
+        model,
+        data_loader,
+        criterion,
+        optimizer,
+        scaler,
+        device
+):
+    # Set the model to training mode
+    model.train()
+    running_loss = 0.0
+
+    for batch_idx, (images, labels) in enumerate(data_loader):
+        images = images.to(device)
+        labels = labels.to(device)
+        optimizer.zero_grad()
+
+        # Forward pass
+        with torch.amp.autocast("cuda"):
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+
+        # Backward pass and optimization
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+
+        # Update the running loss and then empty the cache
+        running_loss += loss.item()
+        del images, labels, outputs, loss
+        torch.cuda.empty_cache()
+    
+    train_loss = running_loss/len(data_loader)
+    return train_loss
