@@ -24,7 +24,7 @@ def compute_iou(box1_center, box1_size, box2_center, box2_size):
     return iou
 
 
-def compute_loss(pred, true, yolo_params, lambda_coord=5.0, lambda_noobj=0.5):
+def compute_loss_v1(pred, true, yolo_params, lambda_coord=5.0, lambda_noobj=0.5):
     """
     Compute the YOLO loss function.
     This is specific to the first version and needs adaptation for handling multiple bounding boxes.
@@ -44,7 +44,7 @@ def compute_loss(pred, true, yolo_params, lambda_coord=5.0, lambda_noobj=0.5):
     print(object_mask.shape)
 
     # Get the predicted box coordinates and dimensions
-    # Not sure about why we only care about the first bounding box 
+    # Not sure about why we only care about the first bounding box
     true_box_center = true[..., 0:2]
     true_box_size = true[..., 2:4]
 
@@ -63,7 +63,7 @@ def compute_loss(pred, true, yolo_params, lambda_coord=5.0, lambda_noobj=0.5):
         loss_masked = object_mask * (loss_center+loss_size)
         coord_loss += lambda_coord * torch.sum(loss_masked, dim=-1, keepdim=True)
 
-        # 2. Compute the IoI for the predicted and true boxes and then the confidence loss for the cells that contain an object
+        # 2. Compute the IoU for the predicted and true boxes and then the confidence loss for the cells that contain an object
         iou = compute_iou(pred_box_center, pred_box_size, true_box_center, true_box_size)
         confidence_loss_obj += object_mask * torch.sum((iou-pred_confidence)**2, dim=-1, keepdim=True)
 
@@ -73,10 +73,68 @@ def compute_loss(pred, true, yolo_params, lambda_coord=5.0, lambda_noobj=0.5):
     # 4. Compute the classification loss
     class_loss = object_mask * torch.sum((true[..., B*5:]-pred[..., B*5:])**2, dim=-1, keepdim=True)
 
-    # Average the losses
-    total_loss = torch.mean(coord_loss + confidence_loss_obj + confidence_loss_noobj + class_loss)
+    # Average the batch losses
+    total_loss = torch.mean(coord_loss+confidence_loss_obj+confidence_loss_noobj+class_loss)
     return total_loss
 
+
+def compute_loss_v2(pred, true, yolo_params, lambda_coord=5.0, lambda_noobj=0.5):
+
+    S = yolo_params["S"]
+    B = yolo_params["B"]
+
+    # Get the true box coordinates and dimensions
+    true_box_center = true[..., 0:2]
+    true_box_size = true[..., 2:4]
+    object_mask = true[..., 4]
+
+    coord_loss = 0.0
+    confidence_loss_obj = 0.0
+    confidence_loss_noobj = 0.0
+
+    box_mask = torch.zeros(S, S, B)[torch.newaxis, ...]
+    ious = torch.zeros(S, S, B)[torch.newaxis, ...]
+    box_losses = torch.zeros(S, S, B)[torch.newaxis, ...]
+    noobj_loss = torch.zeros(S, S, B)[torch.newaxis, ...]
+    class_loss = torch.zeros(S, S)[torch.newaxis, ...]
+
+    for b in range(B):
+        pred_box_center = pred[..., b*5:b*5+2]
+        pred_box_size = pred[..., b*5+2:b*5+4]
+        pred_confidence = pred[..., b*5+4]
+
+        # 1. Compute the coordinate loss (center and size) for the cells that contain an object
+        loss_center = torch.sum((true_box_center-pred_box_center)**2, dim=-1)
+        loss_size = torch.sum((torch.sqrt(true_box_size) - torch.sqrt(torch.clamp(pred_box_size, 1e-6)))**2, dim=-1)
+        box_losses[..., b] += lambda_coord * (loss_center+loss_size)
+
+        # 2. Compute the IoU for the predicted and true boxes and then the confidence loss for the cells that contain an object
+        iou = compute_iou(pred_box_center, pred_box_size, true_box_center, true_box_size)
+        box_losses[..., b] += (iou-pred_confidence)**2
+
+        # 3. Compute the confidence loss for the cells that do not contain an object
+        noobj_loss[..., b] += lambda_noobj * (iou-pred_confidence)**2
+        
+        # Store the IoU for the current bounding box
+        ious[..., b] = iou
+
+    # Create a mask for the bounding box associated to the highest IoU
+    box_mask = torch.zeros(S, S, B)[torch.newaxis, ...]
+    for b in range(B):
+        box_mask[..., b] = (ious == ious.max(dim=-1))
+
+    # Mask the losses
+    coord_loss = torch.sum(box_mask*box_losses, dim=[1, 2, 3])
+    noobj_loss = torch.sum((1-box_mask) * noobj_loss, dim=[1, 2, 3])
+
+    # 4. Compute the confidence loss
+    class_loss = torch.sum((true[..., B*5:]-pred[..., B*5:])**2, dim=-1)
+    confidence_loss = torch.sum(object_mask*class_loss, dim=[1, 2])
+        
+    # Average the losses
+    total_loss = torch.mean(coord_loss + noobj_loss + confidence_loss)
+    return total_loss
+    
 
 def apply_non_max_suppression():
     pass

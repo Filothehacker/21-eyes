@@ -4,6 +4,7 @@ from PIL import Image
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+import tqdm
 
 
 def precompute_img_stats(images_dir):
@@ -127,19 +128,22 @@ class CustomDataset(Dataset):
         return img, label
 
 
-def train(
-        model,
-        data_loader,
-        criterion,
-        optimizer,
-        scaler,
-        device
-):
+def train(model, data_loader, criterion, optimizer, scaler, device):
     # Set the model to training mode
     model.train()
     running_loss = 0.0
+    n_correct = 0
 
-    for batch_idx, (images, labels) in enumerate(data_loader):
+    bar = tqdm.tqdm(
+        total=len(data_loader),
+        dynamic_ncols=True,
+        leave=False,
+        position=0,
+        desc="Training",
+        unit="batch"
+    )
+
+    for _, (images, labels) in enumerate(data_loader):
         images = images.to(device)
         labels = labels.to(device)
         optimizer.zero_grad()
@@ -154,8 +158,17 @@ def train(
         scaler.step(optimizer)
         scaler.update()
 
-        # Update the running loss and then empty the cache
         running_loss += loss.item()
+
+        bar.set_postfix(
+            loss        = "{:.04f}".format(float(train_loss/(i + 1))),
+            acc         = "{:.04f}%".format(n_correct*100/(config["batch_size"]*(i + 1))),
+            n_correct   = n_correct,
+            lr          = "{:.04f}".format(float(optimizer.param_groups[0]["lr"]))
+        )
+        bar.update()
+
+        # Empty the cache
         del images, labels, outputs, loss
         torch.cuda.empty_cache()
     
