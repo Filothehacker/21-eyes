@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 import tqdm
+from yolo_functions import *
 
 
 def precompute_img_stats(images_dir):
@@ -62,6 +63,10 @@ class CustomDataset(Dataset):
                 
             self.image_files.append(image_file)
             self.label_files.append(label_file)
+        
+        # TODO: remove at training time
+        self.image_files = self.image_files[:5]
+        self.label_files = self.label_files[:5]
     
 
     def __len__(self):
@@ -70,7 +75,7 @@ class CustomDataset(Dataset):
 
     def build_label(self, label_path):
         params = self.yolo_params
-        label = torch.zeros((params["S"], params["S"], params["B"]*5 + len(self.classes)))
+        label = torch.zeros((params["S"], params["S"], 5 + len(self.classes)))
 
         with open(label_path, "r") as f:
             for line in f:
@@ -101,7 +106,7 @@ class CustomDataset(Dataset):
                     label[grid_y, grid_x, b*5+3] = height
                     label[grid_y, grid_x, b*5+4] = 1
                 # Set the class label
-                label[grid_y, grid_x, params["B"]*5+class_id] = 1
+                label[grid_y, grid_x, 5+class_id] = 1
         return label
     
 
@@ -132,7 +137,6 @@ def train(model, data_loader, criterion, optimizer, scaler, device):
     # Set the model to training mode
     model.train()
     running_loss = 0.0
-    n_correct = 0
 
     bar = tqdm.tqdm(
         total=len(data_loader),
@@ -143,33 +147,31 @@ def train(model, data_loader, criterion, optimizer, scaler, device):
         unit="batch"
     )
 
-    for _, (images, labels) in enumerate(data_loader):
+    for batch, (images, labels) in enumerate(data_loader):
+
         images = images.to(device)
         labels = labels.to(device)
         optimizer.zero_grad()
 
         # Forward pass
-        with torch.amp.autocast("cuda"):
-            outputs = model(images)
-            loss = criterion(outputs, labels)
+        with torch.amp.autocast(device):
+            preds = model(images)
+            loss = criterion(preds, labels)
 
         # Backward pass and optimization
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
-
         running_loss += loss.item()
-
+            
         bar.set_postfix(
-            loss        = "{:.04f}".format(float(train_loss/(i + 1))),
-            acc         = "{:.04f}%".format(n_correct*100/(config["batch_size"]*(i + 1))),
-            n_correct   = n_correct,
-            lr          = "{:.04f}".format(float(optimizer.param_groups[0]["lr"]))
+            loss="{:.04f}".format(float(running_loss/(batch+1))),
+            lr="{:.04f}".format(float(optimizer.param_groups[0]["lr"]))
         )
         bar.update()
 
         # Empty the cache
-        del images, labels, outputs, loss
+        del images, labels, preds, loss
         torch.cuda.empty_cache()
     
     train_loss = running_loss/len(data_loader)
