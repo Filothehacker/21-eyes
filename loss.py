@@ -1,6 +1,27 @@
 import torch
-from yolo_functions import compute_iou
 
+
+def compute_iou_torch(box1_center, box1_size, box2_center, box2_size):
+    
+    box1_min = box1_center - box1_size/2
+    box1_max = box1_center + box1_size/2
+    box2_min = box2_center - box2_size/2
+    box2_max = box2_center + box2_size/2
+
+    # Intersection area
+    inter_min = torch.max(box1_min, box2_min)
+    inter_max = torch.min(box1_max, box2_max)
+    intersection_area = torch.clamp(inter_max-inter_min, min=0)
+    intersection_area = intersection_area.prod(dim=-1)
+
+    # Union area
+    box1_area = box1_size.prod(dim=-1)
+    box2_area = box2_size.prod(dim=-1)
+    union_area = box1_area + box2_area - intersection_area
+
+    # IoU
+    iou = intersection_area/(union_area+1e-6)
+    return iou
 
 
 class YOLOv1Loss(torch.nn.Module):
@@ -33,7 +54,7 @@ class YOLOv1Loss(torch.nn.Module):
         object_mask = true[..., 4].unsqueeze(-1)
 
         # Get indexes of the boxes responsible for each cell
-        ious = torch.cat([compute_iou(
+        ious = torch.cat([compute_iou_torch(
             pred[..., b*5:b*5+2],
             pred[..., b*5+2:b*5+4],
             true[..., :2],
@@ -41,18 +62,18 @@ class YOLOv1Loss(torch.nn.Module):
         ).unsqueeze(0) for b in range(B)], dim=0)
         best_box = torch.argmax(ious, dim=0).unsqueeze(-1)
 
-        # Mask out the predicted coordinates of the boxes that are not responsible for the object
+        # Mask the predicted coordinates of the boxes that are responsible for the object
         # pred_box_masked = object_mask*(best_box*pred[..., 5:9] + (1-best_box)*pred[..., :4])
         pred_box_masked = sum([
             object_mask*(best_box == b) * pred[..., b*5:b*5+4]
             for b in range(B)
         ])
 
-        # Mask out the true coordinates of the boxes that are not responsible
+        # Mask the true coordinates of the boxes that are responsible
         true_box_masked = object_mask*true[..., :4]
 
-        # Take the square root of the width and height of the boxes
-
+        # Take the square root of width and height
+        # This is done to force the dimensions of the boxes to be as small as possible
         pred_size = torch.sign(pred_box_masked[..., 2:4]) * torch.sqrt(torch.abs(pred_box_masked[..., 2:4])+1e-6)
         true_size = torch.sqrt(true_box_masked[..., 2:4])
         
@@ -65,6 +86,7 @@ class YOLOv1Loss(torch.nn.Module):
 
 
         # 2. Compute the confidence loss for the cells that contain an object
+        # TODO: check if this is correct
         pred_conf_obj_masked = sum([
             object_mask*(best_box == b) * pred[..., b*5+4].unsqueeze(-1)
             for b in range(B)
@@ -74,7 +96,8 @@ class YOLOv1Loss(torch.nn.Module):
         obj_conf_loss = torch.sum((pred_conf_obj_masked - true_conf_obj_masked)**2, dim=[1, 2, 3])
 
 
-        # 3. Compute the confidence loss for the cells that do not contain an object
+        # 3. Compute the confidence loss for empty cells
+        # TODO: check if this is correct
         pred_conf_noobj_masked = sum([
             (1-object_mask)*(best_box == b) * pred[..., b*5+4].unsqueeze(-1)
             for b in range(B)
@@ -86,5 +109,6 @@ class YOLOv1Loss(torch.nn.Module):
         class_loss = torch.sum((true[..., 5:]-pred[..., B*5:])**2, dim=-1).unsqueeze(-1)
         class_loss_masked = torch.sum((object_mask * class_loss), dim=[1, 2, 3])
 
+        # Sum all the losses
         total_loss = coord_loss + obj_conf_loss + noobj_conf_loss + class_loss_masked
         return total_loss.sum()
