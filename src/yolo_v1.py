@@ -78,7 +78,7 @@ class Mlp(nn.Module):
 
 class YoloV1(nn.Module):
 
-    def __init__(self, model_params, cnn_blocks, mlp):
+    def __init__(self, model_params, cnn_blocks, mlp_dict):
         super(YoloV1, self).__init__()
 
         self.params = model_params
@@ -99,7 +99,11 @@ class YoloV1(nn.Module):
             nn.Flatten()
         )
 
-        self.mlp = mlp
+        self.mlp = Mlp(
+            in_size=mlp_dict["in_size"],
+            hidden_sizes=mlp_dict["hidden_sizes"],
+            out_size=mlp_dict["out_size"]
+        )
     
     
     def forward(self, x):
@@ -123,21 +127,18 @@ if __name__ == "__main__":
     with open(config_path, "r") as f:
         config = json.load(f)
 
-    # Retrueve the parameters
+    # Retrieve the parameters
     MODEL_PARAMS = config["MODEL_PARAMS"]
     CNN_DICT = config["CNN"]
     MLP_DICT = config["MLP"]
     OUTPUT_SIZE = MODEL_PARAMS["S"]*MODEL_PARAMS["S"] * (MODEL_PARAMS["B"]*5+MODEL_PARAMS["C"])
+    MLP_DICT["out_size"] = OUTPUT_SIZE
 
     # Create the model
     yolo_v1 = YoloV1(
         model_params=MODEL_PARAMS,
         cnn_blocks=CNN_DICT,
-        mlp=Mlp(
-            in_size=MLP_DICT["in_size"],
-            hidden_sizes= MLP_DICT["hidden_sizes"],
-            out_size=OUTPUT_SIZE
-        )
+        mlp_dict=MLP_DICT
     ).to(DEVICE)
 
     summary(yolo_v1, (3, 416, 416), device=DEVICE)

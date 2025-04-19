@@ -1,4 +1,4 @@
-from inference import compute_map
+from src.inference import compute_map
 import numpy as np
 import os
 from PIL import Image
@@ -42,11 +42,11 @@ def precompute_img_stats(images_dir):
 
 
 class CustomDataset(Dataset):
-    def __init__(self, images_dir, labels_dir, classes, yolo_params, transform=None, input_size=(448, 448)):
+    def __init__(self, images_dir, labels_dir, classes, model_params, transform=None, input_size=(448, 448)):
         self.images_dir = images_dir
         self.labels_dir = labels_dir
         self.classes = classes
-        self.yolo_params = yolo_params
+        self.model_params = model_params
         self.transform = transform
         self.input_size = input_size
         
@@ -65,8 +65,8 @@ class CustomDataset(Dataset):
             self.label_files.append(label_file)
         
         # TODO: remove at training time
-        self.image_files = self.image_files[:5]
-        self.label_files = self.label_files[:5]
+        self.image_files = self.image_files[:3]
+        self.label_files = self.label_files[:3]
     
 
     def __len__(self):
@@ -74,7 +74,7 @@ class CustomDataset(Dataset):
     
 
     def build_label(self, label_path):
-        params = self.yolo_params
+        params = self.model_params
         label = torch.zeros((params["S"], params["S"], 5 + len(self.classes)))
 
         with open(label_path, "r") as f:

@@ -26,10 +26,10 @@ def compute_iou_torch(box1_center, box1_size, box2_center, box2_size):
 
 class YOLOv1Loss(torch.nn.Module):
 
-    def __init__(self, yolo_params, lambda_coord=5.0, lambda_noobj=0.5, device="cpu"):
+    def __init__(self, B, lambda_coord=5.0, lambda_noobj=0.5, device="cpu"):
         super(YOLOv1Loss, self).__init__()
 
-        self.B = yolo_params["B"]
+        self.B = B
         self.lambda_coord = lambda_coord
         self.lambda_noobj = lambda_noobj
         self.device = device
