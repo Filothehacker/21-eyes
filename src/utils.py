@@ -1,4 +1,4 @@
-from src.inference import compute_map
+from inference import compute_map
 import numpy as np
 import os
 from PIL import Image
@@ -64,9 +64,8 @@ class CustomDataset(Dataset):
             self.image_files.append(image_file)
             self.label_files.append(label_file)
         
-        # TODO: remove at training time
-        self.image_files = self.image_files[:3]
-        self.label_files = self.label_files[:3]
+        self.image_files = self.image_files
+        self.label_files = self.label_files
     
 
     def __len__(self):

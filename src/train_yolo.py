@@ -1,14 +1,14 @@
 import gc
 from dotenv import load_dotenv
 import json
-from src.loss import YOLOv1Loss
 import os
+from loss import YOLOv1Loss
 import torch
 from torch.utils.data import DataLoader
-from src.utils import CustomDataset, train, eval
+from utils import CustomDataset, train, eval
 import wandb
 import yaml
-from src.yolo_v1 import YoloV1
+from yolo_v1 import YoloV1
 
 
 def train_loop(model, train_loader, development_loader, criterion, optimizer, scheduler, scaler, device, num_epochs, cwd):
@@ -77,7 +77,6 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
             scheduler.step()
 
     return best_eval_map
-
 
 
 if __name__ == "__main__":
@@ -177,14 +176,13 @@ if __name__ == "__main__":
         patience=5,
     )
 
-    scaler = torch.amp.GradScaler(DEVICE)
+    scaler = torch.cuda.amp.GradScaler(DEVICE)
 
     # Start wandb run
     print("Logging in wandb...")
     wandb.login(key=api_key)
     run = wandb.init(
         name=train_config["architecture"],
-        reinit=True,
         project="21-eyes",
         config=train_config
     )
@@ -194,7 +192,9 @@ if __name__ == "__main__":
     archive_path = os.path.join(cwd, "models", "yolo_v1_architecture.txt")
     with open(archive_path, "w") as archive_file:
         archive_file.write(model_architecture)
-    wandb.save(archive_path, base_path=cwd)
+    artifact = wandb.Artifact("yolo_v1_architecture", type="model")
+    artifact.add_file(archive_path)
+    wandb.run.log_artifact(artifact)
 
     # Train the model
     print("Starting the training phase...")
