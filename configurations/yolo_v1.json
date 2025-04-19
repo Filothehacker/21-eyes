@@ -1,0 +1,55 @@
+{
+  "MODEL_PARAMS": {
+    "S": 9,
+    "B": 2,
+    "C": 52
+  },
+  "CNN": [
+    {
+      "in_c": 3,
+      "channels": [64],
+      "kernels": [7],
+      "strides": [2],
+      "pool": [2, 2]
+    },
+    {
+      "in_c": 64,
+      "channels": [192],
+      "kernels": [3],
+      "strides": [1],
+      "pool": [2, 2]
+    },
+    {
+      "in_c": 192,
+      "channels": [128, 256, 256, 512],
+      "kernels": [1, 3, 1, 3],
+      "strides": [1, 1, 1, 1],
+      "pool": [2, 2]
+    },
+    {
+      "in_c": 512,
+      "channels": [256, 512, 256, 512, 256, 512, 256, 512, 512, 1024],
+      "kernels": [1, 3, 1, 3, 1, 3, 1, 3, 1, 3],
+      "strides": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      "pool": [2, 2]
+    },
+    {
+      "in_c": 1024,
+      "channels": [512, 1024, 512, 1024, 1024, 1024],
+      "kernels": [1, 3, 1, 3, 3, 3],
+      "strides": [1, 1, 1, 1, 1, 2],
+      "pool": false
+    },
+    {
+      "in_c": 1024,
+      "channels": [1024, 1024],
+      "kernels": [3, 3],
+      "strides": [1, 1],
+      "pool": false
+    }
+  ],
+  "MLP": {
+    "in_size": 1024,
+    "hidden_sizes": [4096]
+  }
+}

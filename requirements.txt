@@ -1,7 +1,6 @@
+dotenv
 matplotlib
 numpy
-pandas
-pillow
 torch
 torchvision
 torchsummary
