@@ -74,7 +74,7 @@ def process_pred(pred, B):
 
 def process_true(true):
 
-    # Find the predicted class and concatenate it back with the bounding boxes
+    # Find the true class and concatenate it back with the bounding boxes
     class_probs = true[..., 5:]
     class_id = torch.argmax(class_probs, dim=-1).unsqueeze(-1)
     boxes = torch.cat([true[...,:5], class_id], dim=-1)
