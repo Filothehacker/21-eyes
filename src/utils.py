@@ -64,8 +64,8 @@ class CustomDataset(Dataset):
             self.image_files.append(image_file)
             self.label_files.append(label_file)
         
-        self.image_files = self.image_files
-        self.label_files = self.label_files
+        self.image_files = self.image_files[:50]
+        self.label_files = self.label_files[:50]
     
 
     def __len__(self):
@@ -113,6 +113,7 @@ class CustomDataset(Dataset):
         img = Image.open(img_path).convert("RGB")
         
         # Apply image transformations if provided or default to basic transformations
+        img=img.resize(self.input_size)
         if self.transform:
             img = self.transform(img)
         else:
