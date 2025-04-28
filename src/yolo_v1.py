@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from torchsummary import summary
 import json
+import yaml
 
 
 class ConvolutionBlock(nn.Module):
@@ -74,6 +75,42 @@ class Mlp(nn.Module):
     
     def forward(self, x):
         return self.fully_connected(x)
+    
+
+class Darknet(nn.Module):
+    def __init__(self, model_params, cnn_blocks, n_classes):
+        super(Darknet, self).__init__()
+
+        self.params = model_params
+        self.cnn = nn.ModuleList(
+            [
+                ConvolutionBlock(
+                    in_c=block["in_c"],
+                    channels=block["channels"],
+                    kernels=block["kernels"],
+                    strides=block["strides"],
+                    pool=block["pool"]
+                ) for block in cnn_blocks
+            ]
+        )
+
+        self.pool_flatten = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten()
+        )
+
+        self.mlp = torch.nn.Linear(
+            in_features=cnn_blocks[-1]["channels"][-1],
+            out_features=n_classes
+        )
+
+    def forward(self, x):
+        for conv in self.cnn:
+            x = conv(x)
+        x = self.pool_flatten(x)
+        x = self.mlp(x)
+
+        return x
 
 
 class YoloV1(nn.Module):
@@ -134,7 +171,23 @@ if __name__ == "__main__":
     OUTPUT_SIZE = MODEL_PARAMS["S"]*MODEL_PARAMS["S"] * (MODEL_PARAMS["B"]*5+MODEL_PARAMS["C"])
     MLP_DICT["out_size"] = OUTPUT_SIZE
 
-    # Create the model
+    # Load the classes
+    classes_path = os.path.join(cwd, "configurations", "classes.yaml")
+    with open(classes_path, "r") as f:
+        classes = yaml.safe_load(f)
+    CLASSES = classes["classes"]
+
+    # Create the darknet model
+    darknet = Darknet(
+        model_params=MODEL_PARAMS,
+        cnn_blocks=CNN_DICT,
+        n_classes=len(CLASSES)
+    ).to(DEVICE)
+    print("Darknet")
+    summary(darknet, (3, 416, 416), device=DEVICE)
+
+    # Create the full model
+    print("YoloV1")
     yolo_v1 = YoloV1(
         model_params=MODEL_PARAMS,
         cnn_blocks=CNN_DICT,

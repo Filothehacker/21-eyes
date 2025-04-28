@@ -31,18 +31,50 @@ def compute_iou_numpy(box1_center, box1_size, box2_center, box2_size):
 
 
 def process_pred(pred, B):
-
-    # Find the predicted class and concatenate it back with the bounding boxes
-    class_probs = pred[..., 5:]
+ 
+    # Extract confidence scores for each bounding box
+    # Shape: [batch_size, S, S, B]
+    confidence_scores = torch.stack([pred[..., b*5+4] for b in range(B)], dim=-1)
+   
+    # Find which bounding box has the highest confidence score for each grid cell
+    # Shape: [batch_size, S, S, 1]
+    best_box_indices = torch.argmax(confidence_scores, dim=-1).unsqueeze(-1)
+   
+    # Create a tensor to collect the final box parameters
+    device = pred.device
+    batch_size, S, _, _ = pred.shape
+    boxes = torch.zeros((batch_size, S, S, 6), device=device)  # x, y, w, h, confidence, class_id
+   
+    # For each grid cell, select the box with highest confidence
+    for b in range(B):
+        # Create a mask for cells where this box index is the best
+        mask = (best_box_indices == b)
+       
+        # Only select this box's parameters if it's the best box for the cell
+        # and if the confidence score is positive
+        box_coords = pred[..., b*5:b*5+4]
+        box_confidence = pred[..., b*5+4:b*5+5]
+       
+        # Update boxes tensor where this is the best box and confidence > 0
+        valid_mask = mask & (box_confidence > 0)
+        boxes[..., :4] = torch.where(valid_mask, box_coords, boxes[..., :4])
+        boxes[..., 4:5] = torch.where(valid_mask, box_confidence, boxes[..., 4:5])
+   
+    # Find the predicted class for cells that have a valid box (confidence > 0)
+    class_probs = pred[..., B*5:]
     class_id = torch.argmax(class_probs, dim=-1).unsqueeze(-1)
-    boxes = torch.cat([pred[...,:B*5], class_id], dim=-1)
-
+   
+    # Only assign the class where a valid box exists (confidence > 0)
+    valid_box_mask = (boxes[..., 4:5] > 0)
+    boxes[..., 5:6] = torch.where(valid_box_mask, class_id,
+                                  torch.zeros_like(class_id, device=device))
+   
     return boxes.detach().cpu().numpy()
 
 
 def process_true(true):
 
-    # Find the predicted class and concatenate it back with the bounding boxes
+    # Find the true class and concatenate it back with the bounding boxes
     class_probs = true[..., 5:]
     class_id = torch.argmax(class_probs, dim=-1).unsqueeze(-1)
     boxes = torch.cat([true[...,:5], class_id], dim=-1)
@@ -66,30 +98,45 @@ def convert_boxes_to_list_batch(boxes_batch, S, B, resize=False):
 
 
 def convert_boxes_to_list(boxes, S, B, resize=False):
-    
+    """
+    Convert the processed boxes tensor to a list of boxes, confidences, and classes.
+    Only includes boxes where confidence > 0.
+   
+    Args:
+        boxes: Processed boxes tensor [S, S, 6] (x, y, w, h, confidence, class_id)
+        S: Grid size
+        B: Number of boxes per grid cell (used only for API compatibility)
+        resize: Whether to adjust coordinates based on grid position
+       
+    Returns:
+        Tuple of (boxes_list, confidences_list, classes_list)
+    """
     boxes_list = []
     confidences_list = []
     classes_list = []
-
+   
     for sx in range(S):
         for sy in range(S):
-            for b in range(B):
-                if boxes[sx, sy, b*5+4] <= 0:
-                    continue
-
-                box = boxes[sx, sy, b*5:b*5+4]
-                confidence = float(boxes[sx, sy, b*5+4])
-                class_id = int(boxes[sx, sy, b*5+5])
-
-                x_center = (sx+box[0]) / S if resize else box[0]
-                y_center = (sy+box[1]) / S if resize else box[1]
-                width = box[2]
-                height = box[3]
-
-                boxes_list.append(np.array([x_center, y_center, width, height]))
-                confidences_list.append(confidence)
-                classes_list.append(class_id)
-
+    # for sy in range(S):
+    #     for sx in range(S):
+            # Only process cells with positive confidence
+            if boxes[sx, sy, 4] <= 0:
+                continue
+               
+            box = boxes[sx, sy, :4]
+            confidence = float(boxes[sx, sy, 4])
+            class_id = int(boxes[sx, sy, 5])
+           
+            # Convert coordinates based on grid position if requested
+            x_center = (sx + box[0]) / S if resize else box[0]
+            y_center = (sy + box[1]) / S if resize else box[1]
+            width = box[2]
+            height = box[3]
+           
+            boxes_list.append(np.array([x_center, y_center, width, height]))
+            confidences_list.append(confidence)
+            classes_list.append(class_id)
+   
     return boxes_list, confidences_list, classes_list
 
 
