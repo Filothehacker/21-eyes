@@ -97,7 +97,7 @@ def convert_boxes_to_list_batch(boxes_batch, S, B, resize=False):
     return boxes_list, confidences_list, classes_list
 
 
-def convert_boxes_to_list(boxes, S, B, resize=False):
+def convert_boxes_to_list(boxes, S, resize=False):
     """
     Convert the processed boxes tensor to a list of boxes, confidences, and classes.
     Only includes boxes where confidence > 0.
@@ -117,8 +117,6 @@ def convert_boxes_to_list(boxes, S, B, resize=False):
    
     for sx in range(S):
         for sy in range(S):
-    # for sy in range(S):
-    #     for sx in range(S):
             # Only process cells with positive confidence
             if boxes[sx, sy, 4] <= 0:
                 continue

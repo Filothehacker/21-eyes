@@ -9,6 +9,7 @@ from utils_yolo import YoloDataset, train, eval
 import wandb
 import yaml
 from yolo_v1 import YoloV1
+from resnet import YOLOv1ResNet
 
 
 def train_loop(model, train_loader, development_loader, criterion, optimizer, scheduler, scaler, device, num_epochs, cwd):
@@ -51,6 +52,7 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
         # Save the model if the eval map is the best so far
         if eval_map > best_eval_map:
             best_eval_map = eval_map
+            checkpoint_path = os.path.join(cwd, "models", "yolo_v1.pth")
             torch.save(
                 {
                     "model_state_dict": model.state_dict(),
@@ -59,9 +61,11 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
                     "eval_map": eval_map,
                     "epoch": epoch
                 },
-                os.path.join(cwd, "models", "yolo_v1.pth")
+                checkpoint_path
             )
-        
+        model_artifact = wandb.Artifact(f"model-checkpoint-epoch-{epoch}", type="model")
+        model_artifact.add_file(checkpoint_path)
+        wandb.run.log_artifact(model_artifact)
         # Log metrics to wandb
         wandb.log({
             "train_loss": train_loss,
@@ -150,11 +154,13 @@ if __name__ == "__main__":
 
     # Create the model and all necessary components for the training
     print("Instantiating the model...")
-    yolo_v1 = YoloV1(
-        model_params=MODEL_PARAMS,
-        cnn_blocks=CNN_DICT,
-        mlp_dict=MLP_DICT
-    ).to(DEVICE)
+    
+    # yolo_v1 = YoloV1(
+    #     model_params=MODEL_PARAMS,
+    #     cnn_blocks=CNN_DICT,
+    #     mlp_dict=MLP_DICT
+    # ).to(DEVICE)
+    yolo_v1 = YOLOv1ResNet().to(DEVICE)
 
     criterion = YOLOv1Loss(
         B=MODEL_PARAMS["B"],

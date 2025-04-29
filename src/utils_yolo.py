@@ -63,6 +63,12 @@ class YoloDataset(Dataset):
                 
             self.image_files.append(image_file)
             self.label_files.append(label_file)
+<<<<<<< HEAD:src/utils.py
+        
+        self.image_files = self.image_files[:50]
+        self.label_files = self.label_files[:50]
+=======
+>>>>>>> 15c151179065de5513320861f65a1a8ccec9758a:src/utils_yolo.py
     
 
     def __len__(self):
@@ -110,6 +116,7 @@ class YoloDataset(Dataset):
         img = Image.open(img_path).convert("RGB")
         
         # Apply image transformations if provided or default to basic transformations
+        img=img.resize(self.input_size)
         if self.transform:
             img = self.transform(img)
         else:
