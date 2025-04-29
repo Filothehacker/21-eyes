@@ -116,8 +116,8 @@ if __name__ == "__main__":
     # Load the datasets
     print("Loading the datasets...")
     train_data = YoloDataset(
-    images_dir=os.path.join(cwd, "data", "train", "images"),
-    labels_dir=os.path.join(cwd, "data", "train", "labels"),
+    images_dir=os.path.join(cwd, "data_yolo", "train", "images"),
+    labels_dir=os.path.join(cwd, "data_yolo", "train", "labels"),
     classes=CLASSES,
     model_params=MODEL_PARAMS,
     transform=None,
@@ -133,8 +133,8 @@ if __name__ == "__main__":
     )
 
     development_data = YoloDataset(
-        images_dir=os.path.join(cwd, "data", "development", "images"),
-        labels_dir=os.path.join(cwd, "data", "development", "labels"),
+        images_dir=os.path.join(cwd, "data_yolo", "development", "images"),
+        labels_dir=os.path.join(cwd, "data_yolo", "development", "labels"),
         classes=CLASSES,
         model_params=MODEL_PARAMS,
         transform=None,
