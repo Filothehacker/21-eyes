@@ -103,14 +103,25 @@ class Darknet(nn.Module):
             in_features=cnn_blocks[-1]["channels"][-1],
             out_features=n_classes
         )
+        # Add softmax for classification
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         for conv in self.cnn:
             x = conv(x)
         x = self.pool_flatten(x)
         x = self.mlp(x)
-
+        # Apply softmax to get class probabilities
         return x
+    
+    def predict(self, x):
+        """Use this method for inference to get probability outputs"""
+        for conv in self.cnn:
+            x = conv(x)
+        x = self.pool_flatten(x)
+        logits = self.mlp(x)
+        probabilities = self.softmax(logits)
+        return probabilities
 
 
 class YoloV1(nn.Module):
