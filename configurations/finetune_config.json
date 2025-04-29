@@ -1,8 +1,8 @@
 {
-  "architecture": "yoloV1",
-  "batch_size": 64,
-  "epochs": 50,
-  "lr": 0.005,
+  "architecture": "finetune-yolo_v1",
+  "batch_size": 48,
+  "epochs": 100,
+  "lr": 0.001,
   "momentum": 0.9,
   "optimizer": "SGD",
   "p_dropout": 0.5,
