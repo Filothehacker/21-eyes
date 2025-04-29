@@ -19,7 +19,7 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
     wandb.watch(model, log="all")
 
     # Track metrics
-    best_eval_acc = 0.0
+    best_eval_acc = -1.0
     
     for epoch in range(num_epochs):
         print("\nEpoch {}/{}".format(epoch+1, num_epochs))
@@ -50,16 +50,18 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
         # Save the model if the eval map is the best so far
         if eval_acc > best_eval_acc:
             best_eval_acc = eval_acc
+            checkpoint_path = os.path.join(cwd, "models", "darknet_yolo_v1.pth")
             torch.save(
                 {
-                    "model_state_dict": model.state_dict(),
+                    "model_state_dict": model.cnn.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict(),
                     "scheduler_state_dict": scheduler.state_dict(),
                     "eval_acc": eval_acc,
                     "epoch": epoch
                 },
-                os.path.join(cwd, "models", "darknet_yolo_v1.pth")
+                checkpoint_path
             )
+            print("Model saved!")
         
         # Log metrics to wandb
         wandb.log({
@@ -97,7 +99,6 @@ if __name__ == "__main__":
     # Retrieve the parameters
     MODEL_PARAMS = model_config["MODEL_PARAMS"]
     CNN_DICT = model_config["CNN"]
-    OUTPUT_SIZE = MODEL_PARAMS["S"]*MODEL_PARAMS["S"] * (MODEL_PARAMS["B"]*5+MODEL_PARAMS["C"])
 
     # Load the training configuration file
     train_config_path = os.path.join(cwd, "configurations", "train_config.json")

@@ -30,6 +30,9 @@ class ClassificationDataset(Dataset):
                 
             self.image_files.append(image_file)
             self.label_files.append(label_file)
+        
+        self.image_files = self.image_files[:3]
+        self.label_files = self.label_files[:3]
     
 
     def __len__(self):

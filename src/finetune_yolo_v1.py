@@ -8,8 +8,7 @@ from torch.utils.data import DataLoader
 from utils_yolo import YoloDataset, train, eval
 import wandb
 import yaml
-from yolo_v1 import YoloV1
-from resnet import YOLOv1ResNet
+from yolo_v1 import ConvolutionBlock, YoloV1
 
 
 def train_loop(model, train_loader, development_loader, criterion, optimizer, scheduler, scaler, device, num_epochs, cwd):
@@ -21,7 +20,7 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
     wandb.watch(model, log="all")
 
     # Track metrics
-    best_eval_map = 0.0
+    best_eval_map = -1.0
     
     for epoch in range(num_epochs):
         print("\nEpoch {}/{}".format(epoch+1, num_epochs))
@@ -63,9 +62,8 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
                 },
                 checkpoint_path
             )
-        model_artifact = wandb.Artifact(f"model-checkpoint-epoch-{epoch}", type="model")
-        model_artifact.add_file(checkpoint_path)
-        wandb.run.log_artifact(model_artifact)
+            print("Model saved!")
+
         # Log metrics to wandb
         wandb.log({
             "train_loss": train_loss,
@@ -154,13 +152,31 @@ if __name__ == "__main__":
 
     # Create the model and all necessary components for the training
     print("Instantiating the model...")
-    
-    # yolo_v1 = YoloV1(
-    #     model_params=MODEL_PARAMS,
-    #     cnn_blocks=CNN_DICT,
-    #     mlp_dict=MLP_DICT
-    # ).to(DEVICE)
-    yolo_v1 = YOLOv1ResNet().to(DEVICE)
+    yolo_v1 = YoloV1(
+        model_params=MODEL_PARAMS,
+        cnn_blocks=CNN_DICT,
+        mlp_dict=MLP_DICT
+    ).to(DEVICE)
+
+    # Load the weights for the convolutional layers
+    print("Loading the backbone...")
+    checkpoint_path = os.path.join(cwd, "models", "darknet_yolo_v1.pth")
+    checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
+    model_weights = checkpoint["model_state_dict"]
+
+    darknet = torch.nn.ModuleList(
+            [
+                ConvolutionBlock(
+                    in_c=block["in_c"],
+                    channels=block["channels"],
+                    kernels=block["kernels"],
+                    strides=block["strides"],
+                    pool=block["pool"]
+                ) for block in CNN_DICT
+            ]
+        )
+    darknet.load_state_dict(model_weights, strict=False)
+    yolo_v1.cnn = darknet
 
     criterion = YOLOv1Loss(
         B=MODEL_PARAMS["B"],

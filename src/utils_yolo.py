@@ -63,12 +63,9 @@ class YoloDataset(Dataset):
                 
             self.image_files.append(image_file)
             self.label_files.append(label_file)
-<<<<<<< HEAD:src/utils.py
         
-        self.image_files = self.image_files[:50]
-        self.label_files = self.label_files[:50]
-=======
->>>>>>> 15c151179065de5513320861f65a1a8ccec9758a:src/utils_yolo.py
+        self.image_files = self.image_files[:3]
+        self.label_files = self.label_files[:3]
     
 
     def __len__(self):
