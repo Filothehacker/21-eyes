@@ -8,6 +8,9 @@ from utils_classification import ClassificationDataset, train, eval
 import wandb
 import yaml
 from yolo_v1 import Darknet
+from torch.cuda.amp import GradScaler
+
+
 
 
 def init_weights(params):
@@ -189,7 +192,7 @@ if __name__ == "__main__":
         patience=5,
     )
 
-    scaler = torch.amp.GradScaler(DEVICE)
+    scaler =GradScaler('DEVICE')
 
     # Start wandb run
     print("Logging in wandb...")
