@@ -3,7 +3,7 @@ import os
 import yaml
 
 
-def visualize_prediction(image, boxes, classes_id, classes):
+def visualize_pred(image, boxes, classes_id, classes):
     
     plt.imshow(image)
     ax = plt.gca()
@@ -51,4 +51,4 @@ if __name__ == "__main__":
     with open(classes_path, "r") as f:
         classes = yaml.safe_load(f)["classes"]
 
-    visualize_prediction(image, boxes, classes_id, classes)
+    visualize_pred(image, boxes, classes_id, classes)

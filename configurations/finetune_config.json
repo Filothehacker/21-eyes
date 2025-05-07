@@ -1,6 +1,6 @@
 {
   "architecture": "finetune-yolo_v1",
-  "batch_size": 48,
+  "batch_size": 2,
   "epochs": 100,
   "lr": 0.001,
   "momentum": 0.9,

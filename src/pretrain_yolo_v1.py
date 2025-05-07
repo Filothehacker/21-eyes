@@ -10,6 +10,16 @@ import yaml
 from yolo_v1 import Darknet
 
 
+def init_weights(params):
+    if isinstance(params, torch.nn.Conv2d) or isinstance(params, torch.nn.Linear):
+        torch.nn.init.kaiming_normal_(params.weight, mode='fan_out', nonlinearity='leaky_relu')
+        if params.bias is not None:
+            torch.nn.init.zeros_(params.bias)
+    elif isinstance(params, torch.nn.BatchNorm2d):
+        torch.nn.init.ones_(params.weight)
+        torch.nn.init.zeros_(params.bias)
+
+
 def train_loop(model, train_loader, development_loader, criterion, optimizer, scheduler, scaler, device, num_epochs, cwd):
     
     torch.cuda.empty_cache()
@@ -76,6 +86,11 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
             scheduler.step(eval_loss)
         else:
             scheduler.step()
+        
+    # Save the model to wandb
+    artifact = wandb.Artifact("darknet_yolo_v1", type="model")
+    artifact.add_file(checkpoint_path)
+    wandb.run.log_artifact(artifact)
 
     return best_eval_acc
 
@@ -101,7 +116,7 @@ if __name__ == "__main__":
     CNN_DICT = model_config["CNN"]
 
     # Load the training configuration file
-    train_config_path = os.path.join(cwd, "configurations", "train_config.json")
+    train_config_path = os.path.join(cwd, "configurations", "pretrain_config.json")
     with open(train_config_path, "r") as f:
         train_config = json.load(f)
     
@@ -119,7 +134,7 @@ if __name__ == "__main__":
     classes=CLASSES,
     model_params=MODEL_PARAMS,
     transform=None,
-    input_size=(448, 448)
+    resize=False
     )
 
     train_loader = DataLoader(
@@ -136,7 +151,7 @@ if __name__ == "__main__":
         classes=CLASSES,
         model_params=MODEL_PARAMS,
         transform=None,
-        input_size=(448, 448)
+        resize=False
     )
 
     development_loader = DataLoader(
@@ -153,6 +168,9 @@ if __name__ == "__main__":
         cnn_blocks=CNN_DICT,
         n_classes=len(CLASSES)
     )
+    
+    darknet.apply(init_weights)
+    darknet = darknet.to(DEVICE)
 
     criterion = torch.nn.CrossEntropyLoss()
 

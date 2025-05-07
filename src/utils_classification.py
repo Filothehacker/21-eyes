@@ -30,9 +30,6 @@ class ClassificationDataset(Dataset):
                 
             self.image_files.append(image_file)
             self.label_files.append(label_file)
-        
-        self.image_files = self.image_files[:3]
-        self.label_files = self.label_files[:3]
     
 
     def __len__(self):
@@ -92,6 +89,7 @@ def train(model, data_loader, criterion, optimizer, scaler, device):
 
         # Backward pass and optimization
         scaler.scale(loss).backward()
+        # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
         scaler.step(optimizer)
         scaler.update()
         train_loss += loss.item()
@@ -181,7 +179,7 @@ if __name__ == "__main__":
     MLP_DICT["out_size"] = OUTPUT_SIZE
 
     # Load the training configuration file
-    train_config_path = os.path.join(cwd, "configurations", "train_config.json")
+    train_config_path = os.path.join(cwd, "configurations", "pretrain_config.json")
     with open(train_config_path, "r") as f:
         train_config = json.load(f)
     
@@ -199,7 +197,7 @@ if __name__ == "__main__":
     classes=CLASSES,
     model_params=MODEL_PARAMS,
     transform=None,
-    input_size=(448, 448)
+    resize=True
     )
 
     train_loader = DataLoader(

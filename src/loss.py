@@ -63,7 +63,6 @@ class YOLOv1Loss(torch.nn.Module):
         best_box = torch.argmax(ious, dim=0).unsqueeze(-1)
 
         # Mask the predicted coordinates of the boxes that are responsible for the object
-        # pred_box_masked = object_mask*(best_box*pred[..., 5:9] + (1-best_box)*pred[..., :4])
         pred_box_masked = sum([
             object_mask*(best_box == b) * pred[..., b*5:b*5+4]
             for b in range(B)

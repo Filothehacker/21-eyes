@@ -82,14 +82,14 @@ def process_true(true):
     return boxes.detach().cpu().numpy()
 
 
-def convert_boxes_to_list_batch(boxes_batch, S, B, resize=False):
+def convert_boxes_to_list_batch(boxes_batch, S, resize=False):
 
     boxes_list = []
     confidences_list = []
     classes_list = []
 
     for boxes in boxes_batch:
-        boxes_img, confidences_img, classes_img = convert_boxes_to_list(boxes, S, B, resize)
+        boxes_img, confidences_img, classes_img = convert_boxes_to_list(boxes, S, resize)
         boxes_list.append(boxes_img)
         confidences_list.append(confidences_img)
         classes_list.append(classes_img)
@@ -188,7 +188,11 @@ def apply_non_max_suppression(boxes, confidences, classes, confidence_threshold=
         new_confidences.append(confidences_sorted.pop())
         new_classes.append(classes_sorted.pop())
 
-        for i in range(len(boxes_sorted)):
+        i = 0
+        while True:
+            if i >= len(boxes_sorted):
+                break
+            
             iou = compute_iou_numpy(
                 box[:2],
                 box[2:4],
@@ -199,6 +203,8 @@ def apply_non_max_suppression(boxes, confidences, classes, confidence_threshold=
                 boxes_sorted.pop(i)
                 confidences_sorted.pop(i)
                 classes_sorted.pop(i)
+            else:
+                i += 1
     
     return new_boxes, new_confidences, new_classes
 
@@ -213,8 +219,8 @@ def compute_map(pred, true, S, B, num_classes=52, confidence_threshold=0.5, iou_
     processed_pred = process_pred(pred, B)
     processed_true = process_true(true)
 
-    pred_boxes_batch, pred_confidences_batch, pred_classes_batch = convert_boxes_to_list_batch(processed_pred, S, B)
-    true_boxes_batch, true_confidences_batch, true_classes_batch = convert_boxes_to_list_batch(processed_true, S, B=1)
+    pred_boxes_batch, pred_confidences_batch, pred_classes_batch = convert_boxes_to_list_batch(processed_pred, S)
+    true_boxes_batch, true_confidences_batch, true_classes_batch = convert_boxes_to_list_batch(processed_true, S)
 
     # Apply non-maximum suppression
     pred_boxes_batch, pred_confidences_batch, pred_classes_batch = apply_non_max_suppression_batch(

@@ -1,6 +1,6 @@
 {
     "architecture": "pretrain-yolo_v1",
-    "batch_size": 48,
+    "batch_size": 64,
     "epochs": 50,
     "lr": 0.001,
     "momentum": 0.9,

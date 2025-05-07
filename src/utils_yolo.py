@@ -1,11 +1,13 @@
 from inference import compute_map
 import numpy as np
+import json
 import os
 from PIL import Image
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from tqdm import tqdm
+import yaml
 
 
 def precompute_img_stats(images_dir):
@@ -42,13 +44,14 @@ def precompute_img_stats(images_dir):
 
 
 class YoloDataset(Dataset):
-    def __init__(self, images_dir, labels_dir, classes, model_params, transform=None, input_size=(448, 448)):
+    def __init__(self, images_dir, labels_dir, classes, model_params, transform=None, resize=True):
         self.images_dir = images_dir
         self.labels_dir = labels_dir
         self.classes = classes
         self.model_params = model_params
         self.transform = transform
-        self.input_size = input_size
+        self.resize = resize
+        self.input_size = (448, 448)
         
         self.image_files = []
         self.label_files = []
@@ -112,18 +115,14 @@ class YoloDataset(Dataset):
         img_path = os.path.join(self.images_dir, self.image_files[idx])
         img = Image.open(img_path).convert("RGB")
         
-        # Apply image transformations if provided or default to basic transformations
-        img=img.resize(self.input_size)
+        if self.resize:
+            img = img.resize(self.input_size)
         if self.transform:
             img = self.transform(img)
         else:
             img = transforms.Compose([
-                # transforms.Resize(self.input_size),
+                # transforms.Resize((448, 448)) if self.resize else transforms.Lambda(lambda x: x),
                 transforms.ToTensor(),
-                # transforms.Normalize(
-                #     mean=[0.485, 0.456, 0.406],
-                #     std=[0.229, 0.224, 0.225]
-                # )
             ])(img)
 
         label_path = os.path.join(self.labels_dir, self.label_files[idx])
@@ -159,6 +158,7 @@ def train(model, data_loader, criterion, optimizer, scaler, device):
 
         # Backward pass and optimization
         scaler.scale(loss).backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
         scaler.step(optimizer)
         scaler.update()
         train_loss += loss.item()
@@ -227,3 +227,58 @@ def eval(model, data_loader, criterion, device):
     eval_loss /= len(data_loader)
     eval_map /= len(data_loader)
     return eval_loss, eval_map
+
+
+if __name__ == "__main__":
+    cwd = os.getcwd()
+
+    # Load the model configuration file
+    print("Reading the configuration files...")
+    model_config_path = os.path.join(cwd, "configurations", "yolo_v1.json")
+    with open(model_config_path, "r") as f:
+        model_config = json.load(f)
+
+    # Retrieve the parameters
+    MODEL_PARAMS = model_config["MODEL_PARAMS"]
+    CNN_DICT = model_config["CNN"]
+    MLP_DICT = model_config["MLP"]
+    OUTPUT_SIZE = MODEL_PARAMS["S"]*MODEL_PARAMS["S"] * (MODEL_PARAMS["B"]*5+MODEL_PARAMS["C"])
+    MLP_DICT["out_size"] = OUTPUT_SIZE
+
+    # Load the training configuration file
+    train_config_path = os.path.join(cwd, "configurations", "finetune_config.json")
+    with open(train_config_path, "r") as f:
+        train_config = json.load(f)
+    
+    # Load the classes
+    classes_path = os.path.join(cwd, "configurations", "classes.yaml")
+    with open(classes_path, "r") as f:
+        classes = yaml.safe_load(f)
+    CLASSES = classes["classes"]
+
+    # Load the datasets
+    print("Loading the datasets...")
+    train_data = YoloDataset(
+    images_dir=os.path.join(cwd, "data_yolo", "train", "images"),
+    labels_dir=os.path.join(cwd, "data_yolo", "train", "labels"),
+    classes=CLASSES,
+    model_params=MODEL_PARAMS,
+    transform=None,
+    resize=True
+    )
+
+    train_loader = DataLoader(
+        dataset=train_data,
+        batch_size=train_config["batch_size"],
+        num_workers=0,
+        shuffle=True,
+        pin_memory=True
+    )
+
+    for i, (batch, batch_label) in enumerate(train_loader):
+        img = batch[0]
+        label = batch_label[0]
+        print(f"Image shape: {img.shape}")
+        print(f"Label shape: {label.shape}")
+        print(f"Batch: {batch.shape[0]}")
+        break

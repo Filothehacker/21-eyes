@@ -5,7 +5,7 @@ import json
 import os
 import torch
 from inference import *
-from utils import eval
+from utils_yolo import eval
 from visualize import visualize_prediction
 import yaml
 from PIL import Image

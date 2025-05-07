@@ -1,7 +1,9 @@
 dotenv
+imgaug
 matplotlib
 numpy
 torch
+tqdm
 torchvision
 torchsummary
 wandb

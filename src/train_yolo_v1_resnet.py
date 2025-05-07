@@ -8,7 +8,13 @@ from torch.utils.data import DataLoader
 from utils_yolo import YoloDataset, train, eval
 import wandb
 import yaml
-from yolo_v1 import YoloV1
+
+MODEL_NAME = "yolo_v1_resnet50"
+if MODEL_NAME == "yolo_v1_resnet18":
+    from yolo_v1_resnet18 import YoloV1
+else:
+    from yolo_v1_resnet50 import YoloV1
+
 
 
 def train_loop(model, train_loader, development_loader, criterion, optimizer, scheduler, scaler, device, num_epochs, cwd):
@@ -52,7 +58,7 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
         # Save the model if the eval map is the best so far
         if eval_map > best_eval_map:
             best_eval_map = eval_map
-            checkpoint_path = os.path.join(cwd, "models", "yolo_v1.pth")
+            checkpoint_path = os.path.join(cwd, "models", MODEL_NAME+".pth")
             torch.save(
                 {
                     "model_state_dict": model.state_dict(),
@@ -99,7 +105,7 @@ if __name__ == "__main__":
 
     # Load the model configuration file
     print("Reading the configuration files...")
-    model_config_path = os.path.join(cwd, "configurations", "yolo_v1.json")
+    model_config_path = os.path.join(cwd, "configurations", MODEL_NAME+".json")
     with open(model_config_path, "r") as f:
         model_config = json.load(f)
 
@@ -129,7 +135,7 @@ if __name__ == "__main__":
     classes=CLASSES,
     model_params=MODEL_PARAMS,
     transform=None,
-    resize=False
+    resize=True
     )
 
     train_loader = DataLoader(
@@ -146,7 +152,7 @@ if __name__ == "__main__":
         classes=CLASSES,
         model_params=MODEL_PARAMS,
         transform=None,
-        resize=False
+        resize=True
     )
 
     development_loader = DataLoader(
@@ -198,10 +204,10 @@ if __name__ == "__main__":
 
     # Save the model architecture as a string and log it to wandb
     model_architecture = str(yolo_v1)
-    archive_path = os.path.join(cwd, "models", "yolo_v1_architecture.txt")
+    archive_path = os.path.join(cwd, "models", MODEL_NAME+"_arch.txt")
     with open(archive_path, "w") as archive_file:
         archive_file.write(model_architecture)
-    artifact = wandb.Artifact("yolo_v1_architecture", type="model")
+    artifact = wandb.Artifact(MODEL_NAME+"_arch", type="model")
     artifact.add_file(archive_path)
     wandb.run.log_artifact(artifact)
 

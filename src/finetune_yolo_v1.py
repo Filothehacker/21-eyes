@@ -21,6 +21,7 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
 
     # Track metrics
     best_eval_map = -1.0
+    start_lr = optimizer.param_groups[0]["lr"]
     
     for epoch in range(num_epochs):
         print("\nEpoch {}/{}".format(epoch+1, num_epochs))
@@ -72,11 +73,21 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
             "lr": curr_lr
         })
 
-        # Update the learning rate with the scheduler
-        if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
-            scheduler.step(eval_loss)
-        else:
-            scheduler.step()
+        # Update the learning rate
+        if epoch < 10:
+            for param_group in optimizer.param_groups:
+                param_group["lr"] = start_lr * (epoch+1)
+        
+        if epoch >= 50:
+            if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                scheduler.step(eval_loss)
+            else:
+                scheduler.step()
+            
+    # Save the model to wandb
+    artifact = wandb.Artifact("yolo_v1", type="model")
+    artifact.add_file(checkpoint_path)
+    wandb.run.log_artifact(artifact)
 
     return best_eval_map
 
@@ -105,7 +116,7 @@ if __name__ == "__main__":
     MLP_DICT["out_size"] = OUTPUT_SIZE
 
     # Load the training configuration file
-    train_config_path = os.path.join(cwd, "configurations", "train_config.json")
+    train_config_path = os.path.join(cwd, "configurations", "finetune_config.json")
     with open(train_config_path, "r") as f:
         train_config = json.load(f)
     
@@ -123,7 +134,7 @@ if __name__ == "__main__":
     classes=CLASSES,
     model_params=MODEL_PARAMS,
     transform=None,
-    input_size=(448, 448)
+    resize=True
     )
 
     train_loader = DataLoader(
@@ -140,7 +151,7 @@ if __name__ == "__main__":
         classes=CLASSES,
         model_params=MODEL_PARAMS,
         transform=None,
-        input_size=(448, 448)
+        resize=True
     )
 
     development_loader = DataLoader(
@@ -174,7 +185,7 @@ if __name__ == "__main__":
                     pool=block["pool"]
                 ) for block in CNN_DICT
             ]
-        )
+        ).to(DEVICE)
     darknet.load_state_dict(model_weights, strict=False)
     yolo_v1.cnn = darknet
 
