@@ -85,7 +85,7 @@ YoloV1(
     (fully_connected): Sequential(
       (0): Linear(in_features=1024, out_features=4096, bias=True)
       (1): LeakyReLU(negative_slope=0.1)
-      (2): Linear(in_features=4096, out_features=5022, bias=True)
+      (2): Linear(in_features=4096, out_features=3038, bias=True)
     )
   )
 )
