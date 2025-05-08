@@ -152,7 +152,7 @@ if __name__ == "__main__":
 
     )
 
-    # Create the model
+    # Instantiate the model
     print("Instantiating the model...")
     model_config_path = os.path.join(cwd, "src", "yolov5", "yolov5_ultralytics", "models", "yolov5s.yaml")
     yolov5 = Model(model_config_path, ch=3, nc=len(CLASSES))

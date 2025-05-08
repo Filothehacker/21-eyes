@@ -27,7 +27,7 @@ class CustomDataset(Dataset):
             self.image_files.append(image_file)
             self.label_files.append(label_file)
             
-            if len(self.image_files) > 10:
+            if len(self.image_files) >= 5:
                 break
 
     def __len__(self):

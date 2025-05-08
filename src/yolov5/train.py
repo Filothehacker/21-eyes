@@ -1,3 +1,4 @@
+from inference import compute_map
 import torch
 from tqdm import tqdm
 
@@ -80,6 +81,7 @@ def eval(model, data_loader, criterion, device="cpu"):
 
         # Sum evaluation loss and mean average precision
         eval_loss += loss.item()
+        map = compute_map(pred, labels)
         
         # Update bar info
         bar.set_postfix(
