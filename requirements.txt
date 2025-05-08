@@ -2,6 +2,8 @@ dotenv
 imgaug
 matplotlib
 numpy
+opencv-python
+pandas
 torch
 tqdm
 torchvision

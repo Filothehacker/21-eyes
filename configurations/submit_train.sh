@@ -26,6 +26,6 @@ nvidia-smi
 
 # Run the training script
 echo "Starting card detection training..."
-python src/train_yolo_v1.py
+python src/train_yolov1.py
 
 echo "End: $(date)"

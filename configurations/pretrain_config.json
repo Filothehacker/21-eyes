@@ -1,11 +1,11 @@
 {
-    "architecture": "pretrain-yolo_v1",
-    "batch_size": 64,
-    "epochs": 50,
-    "lr": 0.001,
-    "momentum": 0.9,
-    "optimizer": "SGD",
-    "p_dropout": 0.5,
-    "scheduler": "ReduceLROnPlateau",
-    "weight_decay": 0.0005
+  "config_name": "pretrain-yolo_v1",
+  "batch_size": 2,
+  "epochs": 50,
+  "lr": 0.001,
+  "momentum": 0.9,
+  "optimizer": "SGD",
+  "p_dropout": 0.5,
+  "scheduler": "ReduceLROnPlateau",
+  "weight_decay": 0.0005
   }
