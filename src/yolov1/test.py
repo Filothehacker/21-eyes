@@ -48,15 +48,14 @@ if __name__ == '__main__':
 
     # Load the model weights
     model_path = os.path.join(cwd, "models", "yolov1_best.pth")
-    checkpoint = torch.load(model_path, map_location="cpu")
-    yolo_v1.load_state_dict(checkpoint["model_state_dict"], strict=False)
+    model_state = torch.load(model_path)
+    yolo_v1.load_state_dict(model_state["model_state_dict"], strict=False)
 
     # Do the forward pass
     print("Passing the image through the model...")
     yolo_v1.eval()
     with torch.no_grad():
-        image = image.unsqueeze(0)
-        output = yolo_v1(image)
+        output = yolo_v1(image.unsqueeze(0))
 
     # Do inference
     print("Doing inference...")
@@ -72,7 +71,7 @@ if __name__ == '__main__':
     )
     
     visualize_pred(
-        image=image[0].permute(1, 2, 0).numpy(),
+        image=image.permute(1, 2, 0).numpy(),
         boxes=new_boxes,
         classes_id=new_classes,
         classes=CLASSES

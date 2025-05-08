@@ -164,7 +164,7 @@ if __name__ == "__main__":
 
     # Create the model and all necessary components for the training
     print("Instantiating the model...")
-    yolo_v1 = YoloV1(
+    yolov1 = YoloV1(
         model_params=MODEL_PARAMS,
         cnn_blocks=CNN_DICT,
         mlp_dict=MLP_DICT
@@ -188,7 +188,7 @@ if __name__ == "__main__":
             ]
         ).to(DEVICE)
     darknet.load_state_dict(model_weights, strict=False)
-    yolo_v1.cnn = darknet
+    yolov1.cnn = darknet
 
     criterion = YOLOV1Loss(
         B=MODEL_PARAMS["B"],
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     )
 
     optimizer = torch.optim.SGD(
-        params=yolo_v1.parameters(),
+        params=yolov1.parameters(),
         lr=train_config["lr"],
         momentum=train_config["momentum"],
         weight_decay=train_config["weight_decay"]
@@ -222,7 +222,7 @@ if __name__ == "__main__":
     )
 
     # Save the model architecture as a string and log it to wandb
-    model_architecture = str(yolo_v1)
+    model_architecture = str(yolov1)
     archive_path = os.path.join(cwd, "models", "yolov1_architecture.txt")
     with open(archive_path, "w") as archive_file:
         archive_file.write(model_architecture)
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     # Train the model
     print("Starting the training phase...")
     best_eval_map = train_loop(
-        model=yolo_v1,
+        model=yolov1,
         train_loader=train_loader,
         development_loader=development_loader,
         criterion=criterion,
