@@ -3,7 +3,7 @@ import os
 import yaml
 
 
-def visualize_pred(image, boxes, classes_id, classes):
+def visualize_pred(image, boxes, classes_id=None, classes=None):
     
     plt.imshow(image)
     ax = plt.gca()
@@ -15,15 +15,18 @@ def visualize_pred(image, boxes, classes_id, classes):
         h = box[3]*image.shape[0]
         x_min = (x - w/2)
         y_min = (y - h/2)
-        class_id = classes_id[i]
+
+        if classes_id is not None:
+            class_id = classes_id[i]
 
         # Create a rectangle patch and write the name of the class
         rect = plt.Rectangle((x_min, y_min), w, h, linewidth=1, edgecolor="r", facecolor="none")
         ax.add_patch(rect)
 
-        ax.text(x_min-w/2, y_min+h/4, classes[class_id], color="white", fontsize=8,
-                bbox=dict(facecolor="red", alpha=0.4)
-        )
+        if classes_id is not None and classes is not None:
+            ax.text(x_min-w/2, y_min+h/4, classes[class_id], color="white", fontsize=8,
+                    bbox=dict(facecolor="red", alpha=0.4)
+            )
 
     plt.show()
 

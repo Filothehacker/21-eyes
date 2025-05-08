@@ -16,7 +16,6 @@ else:
     from yolo_v1_resnet50 import YoloV1
 
 
-
 def train_loop(model, train_loader, development_loader, criterion, optimizer, scheduler, scaler, device, num_epochs, cwd):
     
     torch.cuda.empty_cache()
@@ -164,7 +163,6 @@ if __name__ == "__main__":
 
     # Create the model and all necessary components for the training
     print("Instantiating the model...")
-    
     yolo_v1 = YoloV1(
         model_params=MODEL_PARAMS,
         cnn_blocks=CNN_DICT,

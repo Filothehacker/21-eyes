@@ -66,9 +66,6 @@ class YoloDataset(Dataset):
                 
             self.image_files.append(image_file)
             self.label_files.append(label_file)
-        
-        self.image_files = self.image_files[:50]
-        self.label_files = self.label_files[:50]
 
 
     def __len__(self):
@@ -94,6 +91,14 @@ class YoloDataset(Dataset):
                 # Convert to relative coordinates
                 x_cell = x_center*params["S"] - grid_x
                 y_cell = y_center*params["S"] - grid_y
+
+                # Double check
+                # x_center_ = x_center*self.input_size[0]
+                # y_center_ = y_center*self.input_size[0]
+                # n_pixels_per_cell = self.input_size[0] / params["S"]
+                # x_cell_ = (x_center_ % (n_pixels_per_cell)) / n_pixels_per_cell
+                # y_cell_ = (y_center_ % (n_pixels_per_cell)) / n_pixels_per_cell
+                # assert abs(x_cell - x_cell_) < 1e-6
 
                 # Skip the cell if it has already been chosen as the center of another object
                 # This is specific to YOLOv1
@@ -131,7 +136,7 @@ class YoloDataset(Dataset):
         return img, label
 
 
-def train(model, data_loader, criterion, optimizer, scaler, device):
+def train(model, data_loader, criterion, optimizer, scaler, scheduler=None, device="cpu"):
     # Set the model to training mode
     model.train()
     train_loss = 0.0
@@ -145,7 +150,7 @@ def train(model, data_loader, criterion, optimizer, scaler, device):
         unit="batch"
     )
 
-    for batch, (images, labels) in enumerate(data_loader):
+    for batch, (images, labels, _, _) in enumerate(data_loader):
 
         images = images.to(device)
         labels = labels.to(device)
@@ -154,12 +159,14 @@ def train(model, data_loader, criterion, optimizer, scaler, device):
         # Forward pass
         with torch.amp.autocast(device):
             pred = model(images)
-            loss = criterion(pred, labels)
+            loss = criterion(pred, labels)[0]
 
         # Backward pass and optimization
         scaler.scale(loss).backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
+        # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
         scaler.step(optimizer)
+        if scheduler is not None:
+            scheduler.step()
         scaler.update()
         train_loss += loss.item()
 
@@ -180,7 +187,7 @@ def train(model, data_loader, criterion, optimizer, scaler, device):
     return train_loss
 
 
-def eval(model, data_loader, criterion, device):
+def eval(model, data_loader, criterion, device="cpu"):
 
     # Set model to evaluation mode to not compute and backpropagate gradients
     model.eval()
@@ -197,24 +204,24 @@ def eval(model, data_loader, criterion, device):
         unit="batch"
     )
 
-    for batch, (images, labels) in enumerate(data_loader):
+    for batch, (images, labels, _, _) in enumerate(data_loader):
 
         images = images.to(device)
         labels = labels.to(device)
 
         # Forward pass
         with torch.inference_mode():
-            pred = model(images)
-            loss = criterion(pred, labels)
+            pred = model(images)[1]
+            loss = criterion(pred, labels)[0]
 
         # Sum evaluation loss and mean average precision
         eval_loss += loss.item()
-        eval_map += compute_map(pred, labels, model.params["S"], model.params["B"])
+        # eval_map += compute_map(pred, labels, model.params["S"], model.params["B"])
         
         # Update bar info
         bar.set_postfix(
             loss = "{:.04f}".format(float(eval_loss/(batch+1))),
-            map = "{:.04f}".format(float(eval_map/(batch+1)))
+            # map = "{:.04f}".format(float(eval_map/(batch+1)))
         )
         bar.update()
 
@@ -225,7 +232,7 @@ def eval(model, data_loader, criterion, device):
 
     # Average the loss and map over the batches
     eval_loss /= len(data_loader)
-    eval_map /= len(data_loader)
+    # eval_map /= len(data_loader)
     return eval_loss, eval_map
 
 
