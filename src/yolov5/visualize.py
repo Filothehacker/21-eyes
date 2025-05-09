@@ -29,7 +29,6 @@ def visualize_pred(image, boxes, classes_id=None, classes=None):
     output_path = os.path.join(os.getcwd(), "predictions.jpg")
     plt.savefig(output_path)
     plt.show()
-    plt.close()
 
 
 if __name__ == "__main__":

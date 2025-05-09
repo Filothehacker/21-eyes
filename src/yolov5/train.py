@@ -59,6 +59,7 @@ def eval(model, data_loader, criterion, device="cpu"):
     # Set model to evaluation mode to not compute and backpropagate gradients
     model.eval()
     eval_loss = 0.0
+    eval_map = 0.0
 
     bar = tqdm(
         total=len(data_loader),
@@ -76,16 +77,17 @@ def eval(model, data_loader, criterion, device="cpu"):
 
         # Forward pass
         with torch.inference_mode():
-            pred = model(images)[1]
-            loss = criterion(pred, labels)[0]
+            pred = model(images)
+            loss = criterion(pred[1], labels)[0]
 
         # Sum evaluation loss and mean average precision
         eval_loss += loss.item()
-        map = compute_map(pred, labels)
+        eval_map += compute_map(pred, labels)
         
         # Update bar info
         bar.set_postfix(
-            loss = "{:.04f}".format(float(eval_loss/(batch+1)))
+            loss = "{:.04f}".format(float(eval_loss/(batch+1))),
+            map = "{:.04f}".format(float(eval_map/(batch+1)))
         )
         bar.update()
 
@@ -96,4 +98,5 @@ def eval(model, data_loader, criterion, device="cpu"):
 
     # Average the loss over the batches
     eval_loss /= len(data_loader)
-    return eval_loss
+    eval_map /= len(data_loader)
+    return eval_loss, eval_map

@@ -21,7 +21,7 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
     wandb.watch(model, log="all")
 
     # Track metrics
-    best_eval_loss = float("inf")
+    best_eval_map = -1.0
     start_lr = optimizer.param_groups[0]["lr"]
     
     for epoch in range(num_epochs):
@@ -43,17 +43,17 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
         print("Train\t Loss: {:.04f}\t Learning rate: {:.04f}".format(train_loss, curr_lr))
 
         # Evaluate
-        eval_loss = eval(
+        eval_loss, eval_map = eval(
             model=model,
             data_loader=development_loader,
             criterion=criterion,
             device=device
         )
-        print("Eval\t Loss: {:.04f}".format(eval_loss))
+        print("Eval\t Loss: {:.04f}\t Eval map: {:.04f}".format(eval_loss, eval_map))
 
         # Save the model if the eval map is the best so far
-        if eval_loss < best_eval_loss:
-            best_eval_loss = eval_loss
+        if eval_map > best_eval_map:
+            best_eval_map = eval_map
             checkpoint_path = os.path.join(cwd, "models", "yolo_v5.pth")
             torch.save(
                 {
@@ -71,6 +71,7 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
         wandb.log({
             "train_loss": train_loss,
             "eval_loss": eval_loss,
+            "eval_map": eval_map,
             "lr": curr_lr
         })
 
@@ -88,7 +89,7 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
             else:
                 scheduler.step()
 
-    return best_eval_loss
+    return best_eval_map
 
 
 if __name__ == "__main__":
@@ -224,7 +225,7 @@ if __name__ == "__main__":
         num_epochs=train_config["epochs"],
         cwd=cwd
     )
-    print("Best eval loss: {:.04f}".format(best_eval_map))
+    print("Best eval map: {:.04f}".format(best_eval_map))
     
     # Terminate the wandb run
     print("Closing the run...")
