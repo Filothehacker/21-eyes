@@ -10,62 +10,101 @@ from yolov5_ultralytics.models.yolo import Model
 from yolov5_ultralytics.utils.general import non_max_suppression
 
 
-def compute_iou_numpy():
-    pass
+def compute_iou_numpy(box1_min, box1_max, box2_min, box2_max):
+
+    # Compute the size of the boxes
+    box1_size = box1_max - box1_min
+    box2_size = box2_max - box2_min
+    
+    # Intersection area
+    inter_min = np.maximum(box1_min, box2_min)
+    inter_max = np.minimum(box1_max, box2_max)
+    intersection_area = np.clip(inter_max-inter_min, a_min=0, a_max=None)
+    intersection_area = np.prod(intersection_area, axis=-1)
+
+    # Union area
+    box1_area = np.prod(box1_size, axis=-1)
+    box2_area = np.prod(box2_size, axis=-1)
+    union_area = box1_area + box2_area - intersection_area
+
+    # IoU
+    iou = intersection_area/(union_area+1e-6)
+    return iou
 
 
-def process_pred_batch(boxes):
-    pass
+def process_pred_batch(pred_batch):
+    boxes = []
+    confidences = []
+    class_ids = []
+
+    for pred in pred_batch:
+        if pred is not None:
+            boxes_img, confidences_img, class_ids_img = process_pred(pred)
+            boxes.append(boxes_img)
+            confidences.append(confidences_img)
+            class_ids.append(class_ids_img)
+        else:
+            boxes.append([])
+            confidences.append([])
+            class_ids.append([])
+
+    return boxes, confidences, class_ids
 
 
-def process_pred(boxes):
+def process_pred(pred):
 
-    boxes_ = boxes.detach().cpu().numpy()
-    boxes = boxes_[:, :4].tolist()
-    confidences = boxes_[:, 4].tolist()
-    class_ids = boxes_[:, 5].astype(int).tolist()
+    pred = pred.detach().cpu().numpy()
+    boxes = pred[:, :4]
+    confidences = pred[:, 4]
+    class_ids = pred[:, 5].astype(int)
     
     return boxes, confidences, class_ids
 
 
-def process_true(labels, batch_size):
+def process_true(labels, batch_size, img_size):
 
     labels = labels.detach().cpu().numpy()
+    img_size = img_size[0]
     boxes = []
+    confidences = []
     class_ids = []
 
     idx = 0
     while idx < batch_size:
         labels_img = labels[labels[:, 0] == idx]
-        boxes.append(labels_img[:, 2:].tolist())
-        class_ids.append(labels_img[:, 1].astype(int).tolist())
+        boxes_img = labels_img[:, 2:]*img_size
+        boxes_min = boxes_img[:, :2] - boxes_img[:, 2:]/2
+        boxes_max = boxes_img[:, :2] + boxes_img[:, 2:]/2
+        boxes_img = np.concatenate((boxes_min, boxes_max), axis=1)
+        boxes.append(boxes_img)
+        confidences.append(np.ones(labels_img.shape[0]))
+        class_ids.append(labels_img[:, 1].astype(int))
         idx += 1
     
-    return boxes, class_ids
-
+    return boxes, confidences, class_ids
 
 
 def compute_map(pred, true, num_classes=52, conf_threshold=0.25, iou_threshold=0.45):
 
-    pred_nms = non_max_suppression(pred, conf_thres=conf_threshold, iou_thres=iou_threshold)
-    pred_boxes, pred_confidences, pred_classes = process_pred_batch(pred_nms)
-    batch_size = pred[0].shape[0]
-    true_boxes, true_classes = process_true(true, batch_size)
+    pred_nms = non_max_suppression(pred, conf_threshold, iou_threshold)
+    pred_boxes_batch, pred_confidences_batch, pred_classes_batch = process_pred_batch(pred_nms)
+    batch_size = len(pred_boxes_batch)
+    img_size = (416, 416)
+    true_boxes_batch, true_confidences_batch, true_classes_batch = process_true(true, batch_size, img_size)
 
     # Initialize the arrays to store the precision and recall values
-    batch_size = len(pred_boxes)
     precisions = -np.ones((batch_size, num_classes))
     recalls = -np.ones((batch_size, num_classes))
 
     for idx in range(batch_size):
-        pred_boxes = pred_boxes[idx]
-        pred_confidences = pred_confidences[idx]
-        pred_classes = pred_classes[idx]
+        pred_boxes = pred_boxes_batch[idx]
+        pred_confidences = pred_confidences_batch[idx]
+        pred_classes = pred_classes_batch[idx]
         preds = defaultdict(list)
 
-        true_boxes = true_boxes[idx]
-        true_confidences = true_confidences[idx]
-        true_classes = true_classes[idx]
+        true_boxes = true_boxes_batch[idx]
+        true_confidences = true_confidences_batch[idx]
+        true_classes = true_classes_batch[idx]
 
         true_object_idxs = [i for i, conf in enumerate(true_confidences) if conf == 1]
         true_boxes = [true_boxes[i] for i in true_object_idxs]
@@ -209,17 +248,7 @@ if __name__ == "__main__":
     print("Passing the image through the model...")
     yolov5.eval()
     with torch.no_grad():
-        output = yolov5(image.unsqueeze(0))
+        pred = yolov5(image.unsqueeze(0))
 
     # Do inference
-    print("Doing inference...")
-    boxes = non_max_suppression(output)[0]
-
-    boxes, confidences, class_ids = process_pred(boxes)
-
-    visualize_pred(
-        image=image.permute(1, 2, 0).numpy(),
-        boxes=boxes,
-        classes_id=class_ids,
-        classes=CLASSES
-    )
+    map = compute_map(pred, image, num_classes=len(CLASSES), conf_threshold=0.05, iou_threshold=0.5)
