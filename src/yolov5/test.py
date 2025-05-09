@@ -37,12 +37,11 @@ if __name__ == "__main__":
             targets.append([0, class_id, x_center, y_center, width, height])
     targets = torch.tensor(targets)
 
-    # Create the model
+    # Load the model
     print("Instantiating the model...")
     model_config_path = os.path.join(cwd, "src", "yolov5", "yolov5_ultralytics", "models", "yolov5s.yaml")
     yolov5 = Model(model_config_path, ch=3, nc=len(CLASSES))
 
-    # Load the pre-trained weights for the convolution
     model_path = os.path.join(cwd, "models", "yolov5_best.pth")
     model_state = torch.load(model_path, map_location="cpu")
     yolov5.load_state_dict(model_state["model_state_dict"], strict=False)
