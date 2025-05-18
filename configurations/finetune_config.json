@@ -1,10 +1,10 @@
 {
-  "config_name": "finetune-yolo_v5",
-  "batch_size": 2,
-  "epochs": 50,
+  "config_name": "finetune-yolo_v5-batch32-sgd-lr1e-3",
+  "batch_size": 32,
+  "epochs": 70,
   "lr": 1e-3,
   "momentum": 0.9,
-  "optimizer": "Adam",
+  "optimizer": "SGD",
   "p_dropout": 0.5,
   "scheduler": "OneCycleLR",
   "weight_decay": 1e-5
