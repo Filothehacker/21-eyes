@@ -7,6 +7,7 @@ def visualize_pred(image, boxes, classes_id=None, classes=None):
     
     plt.imshow(image)
     ax = plt.gca()
+    plt.axis("off")
 
     for i, box in enumerate(boxes):
         x_min, y_min, x_max, y_max = map(int, box)

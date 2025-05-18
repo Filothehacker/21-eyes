@@ -59,7 +59,7 @@ def main():
     model_config_path = os.path.join(cwd, "src", "yolov5", "yolov5_ultralytics", "models", "yolov5s.yaml")
     model = Model(model_config_path, ch=3, nc=len(CLASSES))
 
-    model_path = os.path.join(cwd, "models", "yolov5_best.pth")
+    model_path = os.path.join(cwd, "models", "yolov5_final.pth")
     model_state = torch.load(model_path, map_location="cpu")
     model.load_state_dict(model_state["model_state_dict"], strict=False)
     model = model.to(DEVICE)

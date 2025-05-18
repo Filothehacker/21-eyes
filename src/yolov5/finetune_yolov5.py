@@ -83,7 +83,7 @@ def train_loop(model, train_loader, development_loader, criterion, optimizer, sc
             for param_group in optimizer.param_groups:
                 param_group["lr"] = start_lr * (epoch+1)
         
-        if epoch >= 50:
+        if epoch >= 15:
             if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
                 scheduler.step(eval_loss)
             else:
@@ -178,9 +178,15 @@ if __name__ == "__main__":
     # Create all necessary components for the training
     criterion = ComputeLoss(yolov5)
 
-    optimizer = torch.optim.Adam(
+    # optimizer = torch.optim.Adam(
+    #     params=yolov5.parameters(),
+    #     lr=train_config["lr"],
+    #     weight_decay=train_config["weight_decay"]
+    # )
+    optimizer = torch.optim.SGD(
         params=yolov5.parameters(),
         lr=train_config["lr"],
+        momentum=train_config["momentum"],
         weight_decay=train_config["weight_decay"]
     )
 
