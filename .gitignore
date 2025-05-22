@@ -1,6 +1,5 @@
 .env
 *.pth
 __pycache__/
-*.txt
 wandb/
 *.zip
