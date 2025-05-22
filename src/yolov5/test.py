@@ -20,14 +20,13 @@ if __name__ == "__main__":
 
     # Load the image
     print("Loading an image...")
-    # image_path = os.path.join(cwd, "data_yolo", "test", "images", "188663805_jpg.rf.52f0026f8e1b2a7f87dc56c45c37c336.jpg")
-    image_path = os.path.join(cwd, "results", "real_test1.jpg")
+    image_path = os.path.join(cwd, "data_yolo", "test", "images", "0.jpg")
     image = cv2.imread(image_path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     image = cv2.resize(image, (416, 416))
     image = transforms.ToTensor()(image)
 
-    # label_path = os.path.join(cwd, "data_yolo", "test", "labels", "188663805_jpg.rf.52f0026f8e1b2a7f87dc56c45c37c336.txt")
+    label_path = os.path.join(cwd, "data_yolo", "test", "labels", "0.txt")
     # targets = []
     # with open(label_path, "r") as f:
     #     for line in f:

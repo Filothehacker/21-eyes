@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
     # Load the image
     print("Loading an image...")
-    image_path = os.path.join(cwd, "data_yolo", "test", "images", "000246247_jpg.rf.fb915aef7c063ce2ac971f8de0d8b2c1.jpg")
+    image_path = os.path.join(cwd, "data_yolo", "test", "images", "0.jpg")
     image = cv2.imread(image_path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     image = transforms.ToTensor()(image)

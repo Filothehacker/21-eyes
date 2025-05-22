@@ -38,10 +38,10 @@ def visualize_pred(image, boxes, classes_id=None, classes=None):
 if __name__ == "__main__":
     cwd = os.getcwd()
     
-    image_path = os.path.join(cwd, "data_yolo", "train", "images", "000090528_jpg.rf.d50e89610e5c97c61632c290692f3e75.jpg")
+    image_path = os.path.join(cwd, "data_yolo", "development", "images", "0.jpg")
     image = plt.imread(image_path)
 
-    label_path = os.path.join(cwd, "data_yolo", "train", "labels", "000090528_jpg.rf.d50e89610e5c97c61632c290692f3e75.txt")
+    label_path = os.path.join(cwd, "data_yolo", "development", "labels", "0.txt")
     boxes = []
     classes_id = []
     with open(label_path, "r") as f:
