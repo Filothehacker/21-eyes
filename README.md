@@ -57,5 +57,5 @@ Then, run the script:
 python src/yolov5/live_detection.py
 ```
 
-potentially replacing the model checkpoint with the one you want to use. \\
+potentially replacing the model checkpoint with the one you want to use.  
 Note that the weights are not included in the repository.
