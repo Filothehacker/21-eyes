@@ -1,14 +1,11 @@
-import xml.etree.ElementTree as ET
-import pickle
-import os
-from os import listdir, getcwd
-from os.path import join
-import sys
 from glob import glob
-
+import os
+import sys
+import xml.etree.ElementTree as ET
 
 
 def convert(size, box):
+
     dw = 1./size[0]
     dh = 1./size[1]
     x = (box[0] + box[1])/2.0
@@ -21,7 +18,9 @@ def convert(size, box):
     h = h*dh
     return (x,y,w,h)
 
+
 def convert_annotation(xml_fn, txt_dir):
+
     in_file = open(xml_fn)
     base = os.path.splitext(os.path.basename(xml_fn))[0]
     if not os.path.exists(txt_dir):
@@ -47,11 +46,13 @@ def convert_annotation(xml_fn, txt_dir):
     in_file.close()
     out_file.close()
 
+
 if len(sys.argv) != 4:
     print(f"Usage: {sys.argv[0]} images_dir classes.names list.txt")
     print(f"Ex: {sys.argv[0]} data/cards/train data/cards.names data/train.txt")
     print("From xml files in images_dir, convert them in txt files with annotation information and build list.txt file")
     sys.exit(1)
+    
 images_dir=sys.argv[1]
 classes_fn=sys.argv[2]
 list_fn=sys.argv[3]
